@@ -111,7 +111,7 @@ class TelegramService
         }
     }
 
-    public function getMessages($peer, int $limit = 50): array
+    public function getMessages(int $peer, int $limit = 50): array
     {
         try {
             $this->initializeMadeline();
@@ -125,7 +125,7 @@ class TelegramService
         }
     }
 
-    public function sendMessage($peer, string $message): array
+    public function sendMessage(int $peer, string $message): array
     {
         try {
             $this->initializeMadeline();
@@ -206,7 +206,7 @@ class TelegramService
         }
     }
 
-    public function getMessage($peer, $messageId): array
+    public function getMessage(int $peer, int $messageId): array
     {
         try {
             $this->initializeMadeline();
