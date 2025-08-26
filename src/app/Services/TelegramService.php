@@ -104,14 +104,64 @@ class TelegramService
     {
         try {
             $this->initializeMadeline();
+
+            $self = $this->madeline->getSelf();
+            if (!$self) {
+                return ['success' => false, 'error' => 'Not authorized'];
+            }
+
+            Log::info('User authorized', ['user' => $self]);
+
             $dialogs = $this->madeline->getFullDialogs();
-            return ['success' => true, 'dialogs' => $dialogs];
+
+            Log::info('Raw dialogs count: ' . count($dialogs));
+
+            if (empty($dialogs)) {
+                return ['success' => true, 'dialogs' => [], 'message' => 'No dialogs found'];
+            }
+
+            $formattedDialogs = [];
+
+            foreach ($dialogs as $index => $dialog) {
+                try {
+                    Log::debug("Dialog {$index}", ['dialog' => $dialog]);
+
+                    if (!isset($dialog['peer'])) {
+                        continue;
+                    }
+
+                    $peer = $dialog['peer'];
+                    $entity = $this->madeline->getInfo($peer);
+
+                    $formattedDialogs[] = [
+                        'peer' => $peer,
+                        'entity' => $entity,
+                        'unread_count' => $dialog['unread_count'] ?? 0,
+                        'last_message_id' => $dialog['top_message'] ?? 0
+                    ];
+
+                } catch (Exception $e) {
+                    Log::warning("Error in dialog {$index}: " . $e->getMessage());
+                    continue;
+                }
+            }
+
+            Log::info('Formatted dialogs count: ' . count($formattedDialogs));
+
+            return [
+                'success' => true,
+                'dialogs' => $formattedDialogs,
+                'total_count' => count($dialogs),
+                'processed_count' => count($formattedDialogs)
+            ];
+
         } catch (Exception $e) {
+            Log::error('getDialogs error: ' . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
-    public function getMessages(int $peer, int $limit = 50): array
+    public function getMessages(mixed $peer, int $limit = 50): array
     {
         try {
             $this->initializeMadeline();
@@ -240,5 +290,88 @@ class TelegramService
                 'error' => $e->getMessage()
             ];
         }
+    }
+
+    public function getDialogByUsername(string $username): array
+    {
+        try {
+            $this->initializeMadeline();
+
+            // Проверяем авторизацию
+            if (!$this->isLoggedIn()) {
+                return ['success' => false, 'error' => 'Not authorized', 'code' => 401];
+            }
+
+            Log::info('Searching for dialog with username: ' . $username);
+
+            // Получаем информацию о пользователе/чате/канале по username
+            try {
+                $entity = $this->madeline->getInfo($username);
+                Log::info('Entity found', ['entity' => $entity]);
+            } catch (Exception $e) {
+                return [
+                    'success' => false,
+                    'error' => 'Dialog not found: ' . $e->getMessage(),
+                    'code' => 404
+                ];
+            }
+
+            // Получаем peer из entity
+            $peer = null;
+            if (isset($entity['id'])) {
+                switch ($entity['_']) {
+                    case 'user':
+                        $peer = ['_' => 'peerUser', 'user_id' => $entity['id']];
+                        break;
+                    case 'chat':
+                        $peer = ['_' => 'peerChat', 'chat_id' => $entity['id']];
+                        break;
+                    case 'channel':
+                        $peer = ['_' => 'peerChannel', 'channel_id' => $entity['id']];
+                        break;
+                }
+            }
+
+            if (!$peer) {
+                return ['success' => false, 'error' => 'Could not determine peer type', 'code' => 400];
+            }
+
+            $messages = $this->getMessages($peer);
+
+            $dialogInfo = [
+                'id' => $entity['id'],
+                'type' => $entity['_'],
+                'title' => $this->extractTitle($entity),
+                'username' => $entity['username'] ?? '',
+                'first_name' => $entity['first_name'] ?? '',
+                'last_name' => $entity['last_name'] ?? '',
+                'phone' => $entity['phone'] ?? '',
+                'peer' => $peer
+            ];
+
+            return [
+                'success' => true,
+                'dialog' => $dialogInfo,
+                'messages' => $messages,
+                'total_messages' => count($messages)
+            ];
+
+        } catch (Exception $e) {
+            Log::error('getDialogByUsername error: ' . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage(), 'code' => 500];
+        }
+    }
+
+    private function extractTitle($entity): string
+    {
+        if (isset($entity['title'])) {
+            return $entity['title'];
+        }
+
+        if (isset($entity['first_name']) || isset($entity['last_name'])) {
+            return trim(($entity['first_name'] ?? '') . ' ' . ($entity['last_name'] ?? ''));
+        }
+
+        return 'Unknown';
     }
 }
