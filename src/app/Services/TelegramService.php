@@ -26,7 +26,6 @@ class TelegramService
         $this->messageService = $messageService;
     }
 
-    // Connection methods
     public function getClient(): \danog\MadelineProto\API
     {
         return $this->connectionService->getClient();
@@ -47,7 +46,6 @@ class TelegramService
         return $this->connectionService->cleanupSession();
     }
 
-    // Auth methods
     public function startLogin(string $phone): array
     {
         return $this->authService->startLogin($phone);
@@ -63,7 +61,6 @@ class TelegramService
         return $this->authService->logout();
     }
 
-    // Dialog methods
     public function getDialogs(): array
     {
         return $this->dialogService->getDialogs();
@@ -74,7 +71,6 @@ class TelegramService
         return $this->dialogService->getDialogByUsername($username);
     }
 
-    // Message methods
     public function getMessages(mixed $peer, int $limit = 50): array
     {
         return $this->messageService->getMessages($peer, $limit);
