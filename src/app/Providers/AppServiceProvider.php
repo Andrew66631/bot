@@ -4,7 +4,10 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use App\Services\TelegramService;
-use App\Services\TelegramAuthService;
+use App\Services\Telegram\TelegramAuthService;
+use App\Services\Telegram\TelegramConnectionService;
+use App\Services\Telegram\TelegramDialogService;
+use App\Services\Telegram\TelegramMessageService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -13,13 +16,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(TelegramAuthService::class, function ($app) {
-            return new TelegramAuthService();
-        });
-
-        $this->app->singleton(TelegramService::class, function ($app) {
-            return new TelegramService();
-        });
+        $this->app->singleton(TelegramConnectionService::class);
+        $this->app->singleton(TelegramAuthService::class);
+        $this->app->singleton(TelegramDialogService::class);
+        $this->app->singleton(TelegramMessageService::class);
+        $this->app->singleton(TelegramService::class);
     }
 
     /**
